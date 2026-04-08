@@ -1,8 +1,10 @@
 name: CI Tests
 
 on:
+  push:
+    branches: [master, dev]
   pull_request:
-    branches: [main, develop]
+    branches: [master, dev]
 
 jobs:
   lint-and-test:
