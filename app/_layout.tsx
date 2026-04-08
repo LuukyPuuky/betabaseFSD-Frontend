@@ -27,7 +27,21 @@ function InitialLayout() {
     }
   }, [isSignedIn, segments, isLoaded]);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen 
+        name="settings" 
+        options={{ 
+          presentation: "modal", 
+          headerShown: true, 
+          title: "Settings", 
+          headerStyle: { backgroundColor: '#1a1a1a' },
+          headerTintColor: '#F3F4F6',
+          headerShadowVisible: false 
+        }} 
+      />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {

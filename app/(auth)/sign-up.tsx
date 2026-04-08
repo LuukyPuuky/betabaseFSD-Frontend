@@ -1,4 +1,5 @@
 import { useAuth, useSignUp } from "@clerk/expo";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { Link, useRouter, type Href } from "expo-router";
 import { cssInterop } from "nativewind";
 import { useState } from "react";
@@ -12,7 +13,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
 
 cssInterop(SafeAreaView, { className: "style" });
 
@@ -39,18 +39,17 @@ const SignUp = () => {
     emailAddress.length === 0 ||
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress);
   const passwordValid = password.length === 0 || password.length >= 8;
-  
+
   const formValid =
     fullName.trim().length > 0 &&
-    emailAddress.length > 0 && 
-    password.length >= 8 && 
+    emailAddress.length > 0 &&
+    password.length >= 8 &&
     emailValid &&
     termsAccepted;
 
   const handleSubmit = async () => {
     if (!formValid) return;
 
-    // We use standard email/password hook here
     // First/Last name logic can be added depending on Clerk settings
     const { error } = await signUp.password({
       emailAddress,
@@ -127,7 +126,9 @@ const SignUp = () => {
                     <MaterialIcons name="terrain" size={32} color="#ffffff" />
                   </View>
                   <Text className="auth-wordmark">BoulderBase</Text>
-                  <Text className="auth-wordmark-sub">Elevate your climbing journey</Text>
+                  <Text className="auth-wordmark-sub">
+                    Elevate your climbing journey
+                  </Text>
                 </View>
               </View>
 
@@ -144,7 +145,12 @@ const SignUp = () => {
                   <View className="auth-field">
                     <Text className="auth-label">Verification Code</Text>
                     <View className="auth-input-container">
-                      <Feather name="shield" size={20} color="#9CA3AF" className="auth-input-icon" />
+                      <Feather
+                        name="shield"
+                        size={20}
+                        color="#9CA3AF"
+                        className="auth-input-icon"
+                      />
                       <TextInput
                         className="auth-input"
                         value={code}
@@ -223,7 +229,9 @@ const SignUp = () => {
                   <MaterialIcons name="terrain" size={32} color="#ffffff" />
                 </View>
                 <Text className="auth-wordmark">BoulderBase</Text>
-                <Text className="auth-wordmark-sub">Elevate your climbing journey</Text>
+                <Text className="auth-wordmark-sub">
+                  Elevate your climbing journey
+                </Text>
               </View>
             </View>
 
@@ -237,11 +245,15 @@ const SignUp = () => {
             {/* Sign-Up Form */}
             <View className="auth-card">
               <View className="auth-form">
-
                 <View className="auth-field">
                   <Text className="auth-label">Full Name</Text>
                   <View className="auth-input-container">
-                    <Feather name="user" size={20} color="#9CA3AF" className="auth-input-icon" />
+                    <Feather
+                      name="user"
+                      size={20}
+                      color="#9CA3AF"
+                      className="auth-input-icon"
+                    />
                     <TextInput
                       className={`auth-input ${fullNameTouched && !fullNameValid && "auth-input-error"}`}
                       value={fullName}
@@ -259,7 +271,12 @@ const SignUp = () => {
                 <View className="auth-field">
                   <Text className="auth-label">Email Address</Text>
                   <View className="auth-input-container">
-                    <Feather name="mail" size={20} color="#9CA3AF" className="auth-input-icon" />
+                    <Feather
+                      name="mail"
+                      size={20}
+                      color="#9CA3AF"
+                      className="auth-input-icon"
+                    />
                     <TextInput
                       className={`auth-input ${emailTouched && !emailValid && "auth-input-error"}`}
                       autoCapitalize="none"
@@ -287,7 +304,12 @@ const SignUp = () => {
                 <View className="auth-field">
                   <Text className="auth-label">Password</Text>
                   <View className="auth-input-container">
-                    <Feather name="lock" size={20} color="#9CA3AF" className="auth-input-icon" />
+                    <Feather
+                      name="lock"
+                      size={20}
+                      color="#9CA3AF"
+                      className="auth-input-icon"
+                    />
                     <TextInput
                       className={`auth-input ${passwordTouched && !passwordValid && "auth-input-error"}`}
                       value={password}
@@ -313,15 +335,21 @@ const SignUp = () => {
 
                 {/* Terms Checkbox */}
                 <View className="mt-2 mb-1">
-                  <Pressable 
-                    onPress={() => setTermsAccepted(!termsAccepted)} 
+                  <Pressable
+                    onPress={() => setTermsAccepted(!termsAccepted)}
                     className="flex-row items-center gap-3"
                   >
-                    <View className={`w-5 h-5 rounded-md border flex items-center justify-center ${termsAccepted ? 'bg-bb-green border-bb-green' : 'bg-bb-checkbox border-bb-checkbox-border'}`}>
-                      {termsAccepted && <Feather name="check" size={14} color="#ffffff" />}
+                    <View
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center ${termsAccepted ? "bg-bb-green border-bb-green" : "bg-bb-checkbox border-bb-checkbox-border"}`}
+                    >
+                      {termsAccepted && (
+                        <Feather name="check" size={14} color="#ffffff" />
+                      )}
                     </View>
                     <Text className="text-bb-text text-sm flex-1">
-                      I agree to the <Text className="text-bb-green">Terms of Service</Text> and <Text className="text-bb-green">Privacy Policy</Text>
+                      I agree to the{" "}
+                      <Text className="text-bb-green">Terms of Service</Text>{" "}
+                      and <Text className="text-bb-green">Privacy Policy</Text>
                     </Text>
                   </Pressable>
                 </View>
