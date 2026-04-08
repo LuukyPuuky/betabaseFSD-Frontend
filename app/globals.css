@@ -1,3 +1,113 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .auth-safe-area {
+    @apply flex-1 bg-bb-bg;
+  }
+
+  .auth-screen {
+    @apply flex-1;
+  }
+
+  .auth-scroll {
+    @apply flex-1;
+  }
+
+  .auth-content {
+    @apply flex-1 px-6 py-8;
+  }
+
+  .auth-brand-block {
+    @apply flex flex-col items-center mb-10 mt-6;
+  }
+
+  .auth-header-block {
+    @apply mb-6;
+  }
+
+  .auth-logo-wrap {
+    @apply flex flex-col items-center justify-center mb-4;
+  }
+
+  .auth-logo-mark {
+    @apply w-16 h-16 rounded-full bg-bb-green flex items-center justify-center shadow-lg mb-4;
+  }
+
+  .auth-wordmark {
+    @apply text-3xl font-bold text-bb-text;
+  }
+
+  .auth-wordmark-sub {
+    @apply text-sm text-bb-text-muted mt-1 tracking-wide;
+  }
+
+  .auth-title {
+    @apply text-2xl font-bold text-bb-text mb-1;
+  }
+
+  .auth-subtitle {
+    @apply text-bb-text-muted text-base;
+  }
+
+  .auth-card {
+    @apply bg-transparent;
+  }
+
+  .auth-form {
+    @apply space-y-5;
+  }
+
+  .auth-field {
+    @apply space-y-2;
+  }
+
+  .auth-label {
+    @apply text-sm font-medium text-bb-text;
+  }
+
+  .auth-input-container {
+    @apply relative flex items-center justify-center;
+  }
+
+  .auth-input {
+    @apply w-full h-14 pl-12 pr-4 bg-bb-card border border-transparent rounded-xl text-base text-bb-text focus:border-bb-green outline-none font-medium;
+  }
+
+  .auth-input-icon {
+    @apply absolute left-4 text-bb-text-muted z-10;
+  }
+
+  .auth-input-error {
+    @apply border-red-500 focus:border-red-500;
+  }
+
+  .auth-error {
+    @apply text-sm text-red-500 font-medium;
+  }
+
+  .auth-button {
+    @apply w-full h-14 rounded-xl bg-bb-green flex items-center justify-center transition-opacity;
+  }
+
+  .auth-button-disabled {
+    @apply opacity-50;
+  }
+
+  .auth-button-text {
+    @apply text-bb-text text-base font-bold;
+  }
+
+  .auth-link-row {
+    @apply mt-8 flex-row items-center justify-center gap-2;
+  }
+
+  .auth-link-copy {
+    @apply text-bb-text-muted text-sm;
+  }
+
+  .auth-link {
+    @apply text-bb-green font-semibold text-sm;
+  }
+}
