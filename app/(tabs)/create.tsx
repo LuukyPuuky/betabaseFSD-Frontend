@@ -14,17 +14,38 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Boulder Font grades commonly used in the Netherlands
-const GRADES = ["3", "4", "4+", "5", "5+", "6A", "6A+", "6B", "6B+", "6C", "6C+", "7A", "7A+", "7B", "7B+", "7C", "7C+", "8A", "8A+", "8B"];
+const GRADES = [
+  "3",
+  "4",
+  "4+",
+  "5",
+  "5+",
+  "6A",
+  "6A+",
+  "6B",
+  "6B+",
+  "6C",
+  "6C+",
+  "7A",
+  "7A+",
+  "7B",
+  "7B+",
+  "7C",
+  "7C+",
+  "8A",
+  "8A+",
+  "8B",
+];
 const STYLES = ["Dynamic", "Static", "Crimp", "Slab", "Sloper"];
 
 export default function Create() {
   const router = useRouter();
   const [gym, setGym] = useState("");
   const [description, setDescription] = useState("");
-  
+
   const [grade, setGrade] = useState("Select Grade");
   const [showGradeModal, setShowGradeModal] = useState(false);
-  
+
   const [style, setStyle] = useState("Dynamic");
   const [showStyleModal, setShowStyleModal] = useState(false);
 
@@ -92,11 +113,15 @@ export default function Create() {
               {/* Grade */}
               <View className="flex-1">
                 <Text className="text-white font-bold text-sm mb-2">Grade</Text>
-                <Pressable 
+                <Pressable
                   onPress={() => setShowGradeModal(true)}
                   className="bg-bb-card flex-row items-center justify-between rounded-2xl px-4 py-3.5"
                 >
-                  <Text className={`text-base ${grade === "Select Grade" ? "text-bb-text-muted" : "text-white"}`}>{grade}</Text>
+                  <Text
+                    className={`text-base ${grade === "Select Grade" ? "text-bb-text-muted" : "text-white"}`}
+                  >
+                    {grade}
+                  </Text>
                   <Feather name="chevron-down" size={18} color="#9CA3AF" />
                 </Pressable>
               </View>
@@ -104,7 +129,7 @@ export default function Create() {
               {/* Style */}
               <View className="flex-1">
                 <Text className="text-white font-bold text-sm mb-2">Style</Text>
-                <Pressable 
+                <Pressable
                   onPress={() => setShowStyleModal(true)}
                   className="bg-bb-card flex-row items-center justify-between rounded-2xl px-4 py-3.5"
                 >
@@ -150,8 +175,8 @@ export default function Create() {
 
       {/* Grade Selector Modal */}
       <Modal visible={showGradeModal} transparent animationType="fade">
-        <Pressable 
-          className="flex-1 justify-end bg-black/60" 
+        <Pressable
+          className="flex-1 justify-end bg-black/60"
           onPress={() => setShowGradeModal(false)}
         >
           <View className="bg-bb-card rounded-t-3xl max-h-[60%] w-full overflow-hidden">
@@ -159,14 +184,24 @@ export default function Create() {
               <View className="w-12 h-1 bg-bb-text-muted rounded-full mb-3" />
               <Text className="text-white font-bold text-lg">Select Grade</Text>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-              {GRADES.map(g => (
-                <Pressable 
-                  key={g} 
-                  onPress={() => { setGrade(g); setShowGradeModal(false); }} 
-                  className={`p-4 border-b border-[#1a1a1a] items-center ${grade === g ? 'bg-bb-green/20' : ''}`}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {GRADES.map((g) => (
+                <Pressable
+                  key={g}
+                  onPress={() => {
+                    setGrade(g);
+                    setShowGradeModal(false);
+                  }}
+                  className={`p-4 border-b border-[#1a1a1a] items-center ${grade === g ? "bg-bb-green/20" : ""}`}
                 >
-                  <Text className={`text-base ${grade === g ? 'text-bb-green font-bold' : 'text-white'}`}>{g}</Text>
+                  <Text
+                    className={`text-base ${grade === g ? "text-bb-green font-bold" : "text-white"}`}
+                  >
+                    {g}
+                  </Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -176,8 +211,8 @@ export default function Create() {
 
       {/* Style Selector Modal */}
       <Modal visible={showStyleModal} transparent animationType="fade">
-        <Pressable 
-          className="flex-1 justify-end bg-black/60" 
+        <Pressable
+          className="flex-1 justify-end bg-black/60"
           onPress={() => setShowStyleModal(false)}
         >
           <View className="bg-bb-card rounded-t-3xl max-h-[50%] w-full overflow-hidden">
@@ -185,14 +220,24 @@ export default function Create() {
               <View className="w-12 h-1 bg-bb-text-muted rounded-full mb-3" />
               <Text className="text-white font-bold text-lg">Select Style</Text>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-              {STYLES.map(s => (
-                <Pressable 
-                  key={s} 
-                  onPress={() => { setStyle(s); setShowStyleModal(false); }} 
-                  className={`p-4 border-b border-[#1a1a1a] items-center ${style === s ? 'bg-bb-green/20' : ''}`}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 40 }}
+            >
+              {STYLES.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => {
+                    setStyle(s);
+                    setShowStyleModal(false);
+                  }}
+                  className={`p-4 border-b border-[#1a1a1a] items-center ${style === s ? "bg-bb-green/20" : ""}`}
                 >
-                  <Text className={`text-base ${style === s ? 'text-bb-green font-bold' : 'text-white'}`}>{s}</Text>
+                  <Text
+                    className={`text-base ${style === s ? "text-bb-green font-bold" : "text-white"}`}
+                  >
+                    {s}
+                  </Text>
                 </Pressable>
               ))}
             </ScrollView>
