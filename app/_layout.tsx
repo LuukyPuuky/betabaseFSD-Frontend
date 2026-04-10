@@ -14,7 +14,7 @@ function InitialLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -29,16 +29,16 @@ function InitialLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen 
-        name="settings" 
-        options={{ 
-          presentation: "modal", 
-          headerShown: true, 
-          title: "Settings", 
-          headerStyle: { backgroundColor: '#1a1a1a' },
-          headerTintColor: '#F3F4F6',
-          headerShadowVisible: false 
-        }} 
+      <Stack.Screen
+        name="settings"
+        options={{
+          presentation: "modal",
+          headerShown: true,
+          title: "Settings",
+          headerStyle: { backgroundColor: "#1a1a1a" },
+          headerTintColor: "#F3F4F6",
+          headerShadowVisible: false,
+        }}
       />
     </Stack>
   );

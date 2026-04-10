@@ -1,4 +1,5 @@
 import { useSignIn } from "@clerk/expo";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { Link, useRouter, type Href } from "expo-router";
 import { cssInterop } from "nativewind";
 import { useState } from "react";
@@ -12,7 +13,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
 
 cssInterop(SafeAreaView, { className: "style" });
 
@@ -139,7 +139,9 @@ const SignIn = () => {
                     <MaterialIcons name="terrain" size={32} color="#ffffff" />
                   </View>
                   <Text className="auth-wordmark">BoulderBase</Text>
-                  <Text className="auth-wordmark-sub">Elevate your climbing journey</Text>
+                  <Text className="auth-wordmark-sub">
+                    Elevate your climbing journey
+                  </Text>
                 </View>
               </View>
 
@@ -156,7 +158,12 @@ const SignIn = () => {
                   <View className="auth-field">
                     <Text className="auth-label">Verification Code</Text>
                     <View className="auth-input-container">
-                      <Feather name="shield" size={20} color="#9CA3AF" className="auth-input-icon" />
+                      <Feather
+                        name="shield"
+                        size={20}
+                        color="#9CA3AF"
+                        className="auth-input-icon"
+                      />
                       <TextInput
                         className="auth-input"
                         value={code}
@@ -233,7 +240,9 @@ const SignIn = () => {
                   <MaterialIcons name="terrain" size={32} color="#ffffff" />
                 </View>
                 <Text className="auth-wordmark">BoulderBase</Text>
-                <Text className="auth-wordmark-sub">Elevate your climbing journey</Text>
+                <Text className="auth-wordmark-sub">
+                  Elevate your climbing journey
+                </Text>
               </View>
             </View>
 
@@ -250,7 +259,12 @@ const SignIn = () => {
                 <View className="auth-field">
                   <Text className="auth-label">Email Address</Text>
                   <View className="auth-input-container">
-                    <Feather name="mail" size={20} color="#9CA3AF" className="auth-input-icon" />
+                    <Feather
+                      name="mail"
+                      size={20}
+                      color="#9CA3AF"
+                      className="auth-input-icon"
+                    />
                     <TextInput
                       className={`auth-input ${emailTouched && !emailValid && "auth-input-error"}`}
                       autoCapitalize="none"
@@ -278,7 +292,12 @@ const SignIn = () => {
                 <View className="auth-field">
                   <Text className="auth-label">Password</Text>
                   <View className="auth-input-container">
-                    <Feather name="lock" size={20} color="#9CA3AF" className="auth-input-icon" />
+                    <Feather
+                      name="lock"
+                      size={20}
+                      color="#9CA3AF"
+                      className="auth-input-icon"
+                    />
                     <TextInput
                       className={`auth-input ${passwordTouched && !passwordValid && "auth-input-error"}`}
                       value={password}
@@ -314,7 +333,9 @@ const SignIn = () => {
 
             {/* Sign-Up Link */}
             <View className="auth-link-row">
-              <Text className="auth-link-copy">Don't have an account?</Text>
+              <Text className="auth-link-copy">
+                Don&apos;t have an account?
+              </Text>
               <Link href="/(auth)/sign-up" asChild>
                 <Pressable>
                   <Text className="auth-link">Sign up</Text>
@@ -329,4 +350,3 @@ const SignIn = () => {
 };
 
 export default SignIn;
-
