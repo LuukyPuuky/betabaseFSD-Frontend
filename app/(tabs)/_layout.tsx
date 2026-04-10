@@ -1,7 +1,6 @@
-import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { View, Pressable } from "react-native";
-import { Link } from "expo-router";
+import { Link, Tabs } from "expo-router";
+import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
@@ -30,24 +29,33 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Feather name="home" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Feather name="home" size={24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="friends"
         options={{
           title: "Friends",
-          tabBarIcon: ({ color }) => <Feather name="users" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Feather name="users" size={24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="create"
         options={{
           title: "",
-          tabBarShowLabel: false,
           tabBarIcon: ({ focused }) => (
-            <View className={`w-16 h-10 rounded-xl items-center justify-center mt-3 ${focused ? 'bg-bb-green' : 'bg-bb-card'}`}>
-              <Feather name="plus" size={24} color={focused ? "#ffffff" : "#5A8B5F"} />
+            <View
+              className={`w-16 h-10 rounded-xl items-center justify-center mt-3 ${focused ? "bg-bb-green" : "bg-bb-card"}`}
+            >
+              <Feather
+                name="plus"
+                size={24}
+                color={focused ? "#ffffff" : "#5A8B5F"}
+              />
             </View>
           ),
         }}
@@ -56,7 +64,9 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: "Chat",
-          tabBarIcon: ({ color }) => <Feather name="message-circle" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Feather name="message-circle" size={24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -64,10 +74,12 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           headerShown: true,
-          headerStyle: { backgroundColor: '#1a1a1a' },
-          headerTintColor: '#F3F4F6',
+          headerStyle: { backgroundColor: "#1a1a1a" },
+          headerTintColor: "#F3F4F6",
           headerShadowVisible: false,
-          tabBarIcon: ({ color }) => <Feather name="user" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Feather name="user" size={24} color={color} />
+          ),
           headerRight: () => (
             <Link href={"/settings" as any} asChild>
               <Pressable className="mr-4">
