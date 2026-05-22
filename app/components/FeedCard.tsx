@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { ResizeMode, Video } from "expo-av";
-import { useEffect, useRef, useState } from "react";
+import { VideoView, useVideoPlayer } from "expo-video";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 const MOCK_USER_NAME = "James Doe";
@@ -28,7 +28,18 @@ type FeedCardProps = {
 export default function FeedCard({ item, active }: FeedCardProps) {
   const [following, setFollowing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(active);
-  const videoRef = useRef<Video>(null);
+  const player = useVideoPlayer(item.video_url, (player) => {
+    player.loop = true;
+    player.muted = false;
+  });
+
+  useEffect(() => {
+    if (isPlaying) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isPlaying, player]);
 
   useEffect(() => {
     setIsPlaying(active);
@@ -84,14 +95,10 @@ export default function FeedCard({ item, active }: FeedCardProps) {
         className="mx-4 rounded-2xl overflow-hidden"
         style={{ aspectRatio: 4 / 5 }}
       >
-        <Video
-          ref={videoRef}
-          source={{ uri: item.video_url }}
+        <VideoView
+          player={player}
           style={{ width: "100%", height: "100%" }}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay={isPlaying}
-          isLooping
-          isMuted={false}
+          nativeControls={false}
         />
 
         {/* Play/Pause Overlay */}
