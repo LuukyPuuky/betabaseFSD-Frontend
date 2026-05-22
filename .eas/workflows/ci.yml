@@ -2,14 +2,14 @@ name: CI Checks
 
 on:
   push:
-    branches: ['*']
+    branches: ["*"]
 
 jobs:
   lint_and_typecheck:
     name: Lint & Type Check
     steps:
-      - uses: eas/checkout@v1
-      - uses: eas/use-npm-token@v1
+      - uses: eas/checkout
+      - uses: eas/use-npm-token
       - name: Install dependencies
         run: npm ci
       - name: Run ESLint
