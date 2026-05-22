@@ -12,21 +12,21 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setPosts(data);
+      }
+
+      setLoading(false);
+    };
+
     fetchPosts();
-  }, []);
-
-  const fetchPosts = async () => {
-    const { data, error } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setPosts(data);
-    }
-
-    setLoading(false);
-  };
+  }, [supabase]);
 
   if (loading) {
     return (

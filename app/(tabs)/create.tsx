@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { Video } from "expo-av";
 import * as ImagePicker from "expo-image-picker";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -57,8 +57,13 @@ export default function Create() {
   const [style, setStyle] = useState("Dynamic");
 
   // Media State
-  const [video, setVideo] = useState<ImagePicker.ImagePickerAsset | null>(null); // Stores the selected video object
+  const [video, setVideo] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [uploading, setUploading] = useState(false);
+  const player = useVideoPlayer(video?.uri || "", (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
   // UI State
   const [showGradeModal, setShowGradeModal] = useState(false);
@@ -92,11 +97,11 @@ export default function Create() {
       const blob = await response.blob();
 
       const fileExt = video.uri.split(".").pop();
-      const fileName = `${uuid.v4()}.${fileExt}`;
+      const fileName = `${String(uuid.v4())}.${fileExt}`;
       const filePath = `${fileName}`;
 
       // B. Upload to Supabase Storage
-      const { data: storageData, error: storageError } = await supabase.storage
+      const { error: storageError } = await supabase.storage
         .from("videoStorage")
         .upload(filePath, blob, {
           contentType: "video/mp4",
@@ -159,12 +164,10 @@ export default function Create() {
             className="mt-4 border-2 border-dashed border-[#2A3F2D] rounded-3xl overflow-hidden min-h-[200px] items-center justify-center bg-[#1a211a]"
           >
             {video ? (
-              <Video
-                source={{ uri: video.uri }}
+              <VideoView
+                player={player}
                 style={{ width: "100%", height: 200 }}
-                isMuted
-                shouldPlay
-                isLooping
+                nativeControls={false}
               />
             ) : (
               <>

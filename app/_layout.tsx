@@ -33,7 +33,7 @@ function InitialLayout() {
     } else if (!isSignedIn && !inAuthGroup) {
       router.replace("/(auth)/sign-in");
     }
-  }, [isSignedIn, segments, isLoaded]);
+  }, [isSignedIn, segments, isLoaded, router]);
 
   if (!isLoaded) {
     return null;
