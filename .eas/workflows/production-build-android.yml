@@ -2,7 +2,7 @@ name: Production Build Android
 
 on:
   push:
-    branches: ["*"]
+    branches: ["build-android-production"]
 
 jobs:
   build_android:

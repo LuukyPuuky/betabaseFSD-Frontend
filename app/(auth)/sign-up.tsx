@@ -21,6 +21,12 @@ const SignUp = () => {
   const { isSignedIn } = useAuth();
   const router = useRouter();
 
+  const authScrollContentStyle = {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  };
+
   const [fullName, setFullName] = useState("");
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -218,6 +224,7 @@ const SignUp = () => {
       >
         <ScrollView
           className="auth-scroll"
+          contentContainerStyle={authScrollContentStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

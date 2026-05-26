@@ -20,9 +20,17 @@ const SignIn = () => {
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
 
+  const authScrollContentStyle = {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  };
+
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [mfaChallengeSent, setMfaChallengeSent] = useState(false);
 
   // Validation states
   const [emailTouched, setEmailTouched] = useState(false);
@@ -35,6 +43,40 @@ const SignIn = () => {
   const passwordValid = password.length > 0;
   const formValid =
     emailAddress.length > 0 && password.length > 0 && emailValid;
+
+  const isMfaStep =
+    signIn.status === "needs_second_factor" ||
+    signIn.status === "needs_client_trust" ||
+    mfaChallengeSent;
+
+  const handleFinalize = async () => {
+    await signIn.finalize({
+      navigate: ({ session, decorateUrl }) => {
+        if (session?.currentTask) {
+          console.log(session?.currentTask);
+          return;
+        }
+
+        const url = decorateUrl("/(tabs)");
+        if (url.startsWith("http")) {
+          // Only use window.location on web platform
+          if (typeof window !== "undefined" && window.location) {
+            window.location.href = url;
+          } else {
+            // On native, just use router navigation
+            router.replace("/(tabs)" as Href);
+          }
+        } else {
+          router.replace(url as Href);
+        }
+      },
+    });
+  };
+
+  const handleSendMfaCode = async () => {
+    await signIn.mfa.sendEmailCode();
+    setMfaChallengeSent(true);
+  };
 
   const handleSubmit = async () => {
     if (!formValid) return;
@@ -50,39 +92,9 @@ const SignIn = () => {
     }
 
     if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
-
-          const url = decorateUrl("/(tabs)");
-          if (url.startsWith("http")) {
-            // Only use window.location on web platform
-            if (typeof window !== "undefined" && window.location) {
-              window.location.href = url;
-            } else {
-              // On native, just use router navigation
-              router.replace("/(tabs)" as Href);
-            }
-          } else {
-            router.replace(url as Href);
-          }
-        },
-      });
-    } else if (signIn.status === "needs_second_factor") {
-      // Handle MFA if needed (not implemented in this basic flow)
-      console.log("MFA required");
-    } else if (signIn.status === "needs_client_trust") {
-      // Send email code for client trust verification
-      const emailCodeFactor = signIn.supportedSecondFactors.find(
-        (factor) => factor.strategy === "email_code",
-      );
-
-      if (emailCodeFactor) {
-        await signIn.mfa.sendEmailCode();
-      }
+      await handleFinalize();
+    } else if (isMfaStep) {
+      await handleSendMfaCode();
     } else {
       console.error("Sign-in attempt not complete:", signIn);
     }
@@ -92,34 +104,14 @@ const SignIn = () => {
     await signIn.mfa.verifyEmailCode({ code });
 
     if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ session, decorateUrl }) => {
-          if (session?.currentTask) {
-            console.log(session?.currentTask);
-            return;
-          }
-
-          const url = decorateUrl("/(tabs)");
-          if (url.startsWith("http")) {
-            // Only use window.location on web platform
-            if (typeof window !== "undefined" && window.location) {
-              window.location.href = url;
-            } else {
-              // On native, just use router navigation
-              router.replace("/(tabs)" as Href);
-            }
-          } else {
-            router.replace(url as Href);
-          }
-        },
-      });
+      await handleFinalize();
     } else {
       console.error("Sign-in attempt not complete:", signIn);
     }
   };
 
   // Show verification screen if client trust is needed
-  if (signIn.status === "needs_client_trust") {
+  if (isMfaStep) {
     return (
       <SafeAreaView className="auth-safe-area">
         <KeyboardAvoidingView
@@ -148,7 +140,8 @@ const SignIn = () => {
               <View className="auth-header-block">
                 <Text className="auth-title">Verify your identity</Text>
                 <Text className="auth-subtitle">
-                  We sent a verification code to your email.
+                  We sent a verification code to your email. Enter it below to
+                  finish signing in.
                 </Text>
               </View>
 
@@ -194,7 +187,7 @@ const SignIn = () => {
 
                   <View className="flex-row justify-between mt-4">
                     <Pressable
-                      onPress={() => signIn.mfa.sendEmailCode()}
+                      onPress={handleSendMfaCode}
                       disabled={fetchStatus === "fetching"}
                     >
                       <Text className="text-bb-green font-semibold">
@@ -203,7 +196,10 @@ const SignIn = () => {
                     </Pressable>
 
                     <Pressable
-                      onPress={() => signIn.reset()}
+                      onPress={() => {
+                        setMfaChallengeSent(false);
+                        signIn.reset();
+                      }}
                       disabled={fetchStatus === "fetching"}
                     >
                       <Text className="text-bb-green font-semibold">
@@ -229,6 +225,7 @@ const SignIn = () => {
       >
         <ScrollView
           className="auth-scroll"
+          contentContainerStyle={authScrollContentStyle}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -303,11 +300,21 @@ const SignIn = () => {
                       value={password}
                       placeholder="••••••••"
                       placeholderTextColor="#9CA3AF"
-                      secureTextEntry
+                      secureTextEntry={!passwordVisible}
                       onChangeText={setPassword}
                       onBlur={() => setPasswordTouched(true)}
                       autoComplete="password"
                     />
+                    <Pressable
+                      onPress={() => setPasswordVisible(!passwordVisible)}
+                      className="absolute right-4"
+                    >
+                      <Feather
+                        name={passwordVisible ? "eye" : "eye-off"}
+                        size={20}
+                        color="#9CA3AF"
+                      />
+                    </Pressable>
                   </View>
                   {passwordTouched && !passwordValid && (
                     <Text className="auth-error">Password is required</Text>

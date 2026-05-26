@@ -16,15 +16,15 @@
   }
 
   .auth-content {
-    @apply flex-1 px-6 py-8;
+    @apply flex-1;
   }
 
   .auth-brand-block {
-    @apply flex flex-col items-center mb-10 mt-6;
+    @apply flex flex-col items-center mb-12 mt-6;
   }
 
   .auth-header-block {
-    @apply mb-6;
+    @apply mb-10;
   }
 
   .auth-logo-wrap {
@@ -56,7 +56,7 @@
   }
 
   .auth-form {
-    @apply space-y-5;
+    @apply space-y-6;
   }
 
   .auth-field {
@@ -100,7 +100,7 @@
   }
 
   .auth-link-row {
-    @apply mt-8 flex-row items-center justify-center gap-2;
+    @apply mt-12 flex-row items-center justify-center gap-2;
   }
 
   .auth-link-copy {
