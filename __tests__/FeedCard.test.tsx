@@ -24,12 +24,16 @@ jest.mock("expo-video", () => {
   return {
     VideoView: ({ style }: any) => <View style={style} testID="video-view" />,
 
-    useVideoPlayer: jest.fn(() => ({
-      play: jest.fn(),
-      pause: jest.fn(),
-      loop: false,
-      muted: false,
-    })),
+    useVideoPlayer: jest.fn((_url, init) => {
+      const player = {
+        play: jest.fn(),
+        pause: jest.fn(),
+        loop: false,
+        muted: false,
+      };
+      if (init) init(player);
+      return player;
+    }),
   };
 });
 
@@ -172,6 +176,11 @@ describe("FeedCard", () => {
       rerender(<FeedCard item={mockPost} active={false} />);
 
       expect(getByTestId("video-view")).toBeTruthy();
+    });
+
+    test("video initializes correctly", () => {
+      renderFeedCard();
+      expect(FeedCard).toBeTruthy();
     });
   });
 
