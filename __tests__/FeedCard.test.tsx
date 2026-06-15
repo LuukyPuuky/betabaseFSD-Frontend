@@ -53,7 +53,7 @@ jest.mock("@expo/vector-icons", () => {
 const mockPost = {
   id: "1",
   gym_name: "Red Rock Canyon",
-  grade: "5",
+  grade: "V5",
   climbing_style: "Boulder",
   description: "Crushing some V5 problems",
   video_url: "https://example.com/video.mp4",
@@ -191,7 +191,7 @@ describe("FeedCard", () => {
       const customPost = {
         ...mockPost,
         gym_name: "Planet Granite",
-        grade: "7",
+        grade: "V7",
       };
 
       const { getByText } = render(

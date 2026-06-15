@@ -62,11 +62,8 @@ export default function FeedCard({ item, active }: FeedCardProps) {
           <Text className="text-bb-text font-semibold text-sm">
             {MOCK_USER_NAME}
           </Text>
-          <Text
-            className="text-bb-text-muted text-xs mt-0.5"
-            numberOfLines={1}
-          >
-            {item.gym_name} • V{item.grade}
+          <Text className="text-bb-text-muted text-xs mt-0.5" numberOfLines={1}>
+            {item.gym_name} • {item.grade}
           </Text>
         </View>
 
@@ -137,7 +134,9 @@ export default function FeedCard({ item, active }: FeedCardProps) {
         <View className="flex-row items-center gap-4">
           <Pressable className="flex-row items-center gap-1.5">
             <Feather name="heart" size={20} color="#ef4444" />
-            <Text className="text-bb-text-muted text-sm">{MOCK_LIKE_COUNT}</Text>
+            <Text className="text-bb-text-muted text-sm">
+              {MOCK_LIKE_COUNT}
+            </Text>
           </Pressable>
 
           <Pressable>
