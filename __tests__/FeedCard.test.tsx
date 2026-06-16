@@ -1,254 +1,364 @@
 /**
  * FeedCard.test.tsx
  *
- * What is tested:
- * - Rendering of post information
- * - Follow button behavior
- * - Video playback UI states
- * - Different input data
- * - Edge cases
+ * What is tested (live, data-driven FeedCard):
+ * - Real author rendering (no mock data)
+ * - SoundCloud-style timeline note markers + popover
+ * - Like toggle (optimistic + persistence)
+ * - Add-note composer inserting at the current timestamp
+ * - Follow button behavior / hidden on own post
  */
 
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
+import { Share } from "react-native";
+
 import FeedCard from "../app/components/FeedCard";
 
 /* -------------------------------------------------------------------------- */
-/*                                   MOCKS                                    */
+/*                                   MOCKS                                     */
 /* -------------------------------------------------------------------------- */
+
+jest.mock("@clerk/expo", () => ({
+  useAuth: jest.fn(),
+}));
+
+jest.mock("@/lib/supabase", () => ({
+  useSupabase: jest.fn(),
+}));
+
+jest.mock("expo", () => ({
+  // useEvent(player, name, initialValue) -> returns the initial value object.
+  useEvent: (_emitter: any, _name: string, initial: any) => initial,
+}));
+
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
+}));
 
 jest.mock("expo-video", () => {
   const React = jest.requireActual("react");
   const { View } = jest.requireActual("react-native");
-
   return {
-    VideoView: ({ style }: any) => <View style={style} testID="video-view" />,
-
-    useVideoPlayer: jest.fn((_url, init) => {
-      const player = {
-        play: jest.fn(),
-        pause: jest.fn(),
+    useVideoPlayer: (_src: any, setup?: (p: any) => void) => {
+      const player: any = {
+        currentTime: 37,
+        duration: 143,
+        status: "readyToPlay",
         loop: false,
         muted: false,
+        timeUpdateEventInterval: 0,
+        play: jest.fn(),
+        pause: jest.fn(),
       };
-      if (init) init(player);
+      if (setup) setup(player);
       return player;
-    }),
+    },
+    VideoView: ({ style }: any) => <View style={style} testID="video-view" />,
+  };
+});
+
+jest.mock("expo-haptics", () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+  ImpactFeedbackStyle: { Light: "light" },
+}));
+
+jest.mock("expo-image", () => {
+  const React = jest.requireActual("react");
+  const { View } = jest.requireActual("react-native");
+  return {
+    Image: ({ source }: any) => (
+      <View testID={`image-${source?.uri || "placeholder"}`} />
+    ),
   };
 });
 
 jest.mock("@expo/vector-icons", () => {
   const React = jest.requireActual("react");
   const { View } = jest.requireActual("react-native");
-
   return {
     Feather: ({ name }: any) => <View testID={`icon-${name}`} />,
   };
 });
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { useAuth } = require("@clerk/expo");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { useSupabase } = require("@/lib/supabase");
+
 /* -------------------------------------------------------------------------- */
-/*                                 TEST DATA                                  */
+/*                          SUPABASE QUERY-BUILDER MOCK                        */
 /* -------------------------------------------------------------------------- */
 
-const mockPost = {
-  id: "1",
-  gym_name: "Red Rock Canyon",
-  grade: "V5",
-  climbing_style: "Boulder",
-  description: "Crushing some V5 problems",
+type Config = {
+  profiles?: any;
+  profilesError?: any;
+  post_notes?: any[];
+  post_likes?: any[];
+  follows?: any[];
+};
+
+function makeSupabase(config: Config) {
+  const inserts: Record<string, any[]> = {
+    post_notes: [],
+    post_likes: [],
+    follows: [],
+  };
+  const deletes: Record<string, number> = { post_likes: 0, follows: 0 };
+
+  function resolveSelect(table: string) {
+    switch (table) {
+      case "profiles":
+        return {
+          data: config.profiles ?? null,
+          error: config.profilesError ?? null,
+        };
+      case "post_notes":
+        return { data: config.post_notes ?? [], error: null };
+      case "post_likes":
+        return { data: config.post_likes ?? [], error: null };
+      case "follows":
+        return { data: config.follows ?? [], error: null };
+      default:
+        return { data: [], error: null };
+    }
+  }
+
+  function builder(table: string) {
+    const state = { op: "select" as "select" | "insert" | "delete" };
+
+    const b: any = {
+      select: () => b,
+      order: () => b,
+      eq: () => b,
+      single: () => b,
+      insert: (row: any) => {
+        state.op = "insert";
+        inserts[table]?.push(row);
+        return b;
+      },
+      delete: () => {
+        state.op = "delete";
+        deletes[table] = (deletes[table] ?? 0) + 1;
+        return b;
+      },
+      then: (resolve: any, reject: any) => {
+        const result =
+          state.op === "select"
+            ? resolveSelect(table)
+            : { data: null, error: null };
+        return Promise.resolve(result).then(resolve, reject);
+      },
+    };
+    return b;
+  }
+
+  return { from: jest.fn(builder), __inserts: inserts, __deletes: deletes };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  FIXTURES                                   */
+/* -------------------------------------------------------------------------- */
+
+const post = {
+  id: "post-1",
+  gym_name: "Yosemite",
+  grade: "V14",
+  climbing_style: "Dynamic",
+  description: "The Nose",
   video_url: "https://example.com/video.mp4",
+  user_id: "author-1",
 };
 
-/* -------------------------------------------------------------------------- */
-/*                              HELPER FUNCTION                               */
-/* -------------------------------------------------------------------------- */
-
-const renderFeedCard = (props = {}) => {
-  return render(<FeedCard item={mockPost} active={true} {...props} />);
+const note = {
+  id: "note-1",
+  post_id: "post-1",
+  user_id: "commenter-9",
+  timestamp_seconds: 37,
+  body: "Try to use the crimp here!",
+  author: { username: "Jimmy Q.", avatar_url: null },
 };
 
+beforeEach(() => {
+  jest.clearAllMocks();
+  useAuth.mockReturnValue({ userId: "viewer-1" });
+});
+
 /* -------------------------------------------------------------------------- */
-/*                                   TESTS                                    */
+/*                                   TESTS                                     */
 /* -------------------------------------------------------------------------- */
 
 describe("FeedCard", () => {
-  /* -------------------------------- RENDER -------------------------------- */
+  test("renders the real author, not mock data", async () => {
+    useSupabase.mockReturnValue(
+      makeSupabase({ profiles: { username: "Alex H.", avatar_url: null } }),
+    );
 
-  describe("Rendering", () => {
-    test("renders user information", () => {
-      const { getByText } = renderFeedCard();
+    const { getByTestId, queryByText } = render(
+      <FeedCard item={post} active={false} />,
+    );
 
-      expect(getByText("James Doe")).toBeTruthy();
-      expect(getByText(/Red Rock Canyon/)).toBeTruthy();
-      expect(getByText(/V5/)).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId("feed-author-name").props.children).toBe("Alex H.");
     });
+    expect(queryByText("James Doe")).toBeNull();
+  });
 
-    test("renders video player", () => {
-      const { getByTestId } = renderFeedCard();
+  test("renders the post gym and grade", async () => {
+    useSupabase.mockReturnValue(
+      makeSupabase({ profiles: { username: "Alex H.", avatar_url: null } }),
+    );
 
-      expect(getByTestId("video-view")).toBeTruthy();
-    });
+    const { getByText } = render(<FeedCard item={post} active={false} />);
+    expect(getByText(/Yosemite • V14/)).toBeTruthy();
+  });
 
-    test("renders action buttons", () => {
-      const { getByText, getByTestId } = renderFeedCard();
+  test("renders a marker for each timeline note", async () => {
+    useSupabase.mockReturnValue(
+      makeSupabase({
+        profiles: { username: "Alex H.", avatar_url: null },
+        post_notes: [note, { ...note, id: "note-2", timestamp_seconds: 90 }],
+      }),
+    );
 
-      expect(getByText("Follow")).toBeTruthy();
+    const { getByTestId } = render(<FeedCard item={post} active={false} />);
 
-      expect(getByTestId("icon-heart")).toBeTruthy();
-      expect(getByTestId("icon-share-2")).toBeTruthy();
-      expect(getByTestId("icon-edit-2")).toBeTruthy();
-    });
-
-    test("renders video information", () => {
-      const { getByText } = renderFeedCard();
-
-      expect(getByText("1.2k")).toBeTruthy();
-      expect(getByText("0:37 / 2:23")).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId("note-marker-note-1")).toBeTruthy();
+      expect(getByTestId("note-marker-note-2")).toBeTruthy();
     });
   });
 
-  /* ----------------------------- FOLLOW BUTTON ----------------------------- */
+  test("tapping a marker shows the note popover", async () => {
+    useSupabase.mockReturnValue(
+      makeSupabase({
+        profiles: { username: "Alex H.", avatar_url: null },
+        post_notes: [note],
+      }),
+    );
 
-  describe("Follow button", () => {
-    test("changes from Follow to Following", async () => {
-      const { getByText } = renderFeedCard();
+    const { getByTestId, getByText } = render(
+      <FeedCard item={post} active={false} />,
+    );
 
-      fireEvent.press(getByText("Follow"));
+    await waitFor(() => expect(getByTestId("note-marker-note-1")).toBeTruthy());
 
-      await waitFor(() => {
-        expect(getByText("Following")).toBeTruthy();
-      });
+    fireEvent.press(getByTestId("note-marker-note-1"));
+
+    expect(getByTestId("note-popover")).toBeTruthy();
+    expect(getByText("Try to use the crimp here!")).toBeTruthy();
+    expect(getByText(/Jimmy Q\./)).toBeTruthy();
+  });
+
+  test("like button toggles count and persists a like", async () => {
+    const supabase = makeSupabase({
+      profiles: { username: "Alex H.", avatar_url: null },
+      post_likes: [],
     });
+    useSupabase.mockReturnValue(supabase);
 
-    test("toggles back to Follow", async () => {
-      const { getByText } = renderFeedCard();
+    const { getByTestId } = render(<FeedCard item={post} active={false} />);
 
-      fireEvent.press(getByText("Follow"));
+    await waitFor(() =>
+      expect(getByTestId("like-count").props.children).toBe("0"),
+    );
 
-      await waitFor(() => {
-        expect(getByText("Following")).toBeTruthy();
-      });
+    fireEvent.press(getByTestId("like-button"));
 
-      fireEvent.press(getByText("Following"));
-
-      await waitFor(() => {
-        expect(getByText("Follow")).toBeTruthy();
-      });
-    });
-
-    test("keeps follow state after rerender", async () => {
-      const { getByText, rerender } = renderFeedCard();
-
-      fireEvent.press(getByText("Follow"));
-
-      await waitFor(() => {
-        expect(getByText("Following")).toBeTruthy();
-      });
-
-      rerender(<FeedCard item={mockPost} active={false} />);
-
-      expect(getByText("Following")).toBeTruthy();
+    await waitFor(() =>
+      expect(getByTestId("like-count").props.children).toBe("1"),
+    );
+    expect(supabase.__inserts.post_likes).toContainEqual({
+      user_id: "viewer-1",
+      post_id: "post-1",
     });
   });
 
-  /* ------------------------------- VIDEO UI ------------------------------- */
+  test("add-note composer inserts a note at the current timestamp", async () => {
+    const supabase = makeSupabase({
+      profiles: { username: "Alex H.", avatar_url: null },
+    });
+    useSupabase.mockReturnValue(supabase);
 
-  describe("Video playback", () => {
-    test("shows play icon when inactive", () => {
-      const { getByTestId } = renderFeedCard({
-        active: false,
+    const { getByTestId } = render(<FeedCard item={post} active={false} />);
+
+    fireEvent.press(getByTestId("add-note-button"));
+
+    fireEvent.changeText(
+      getByTestId("note-composer-input"),
+      "Heel hook on the arete",
+    );
+    fireEvent.press(getByTestId("note-composer-submit"));
+
+    await waitFor(() => {
+      expect(supabase.__inserts.post_notes).toContainEqual({
+        post_id: "post-1",
+        user_id: "viewer-1",
+        timestamp_seconds: 37,
+        body: "Heel hook on the arete",
       });
-
-      expect(getByTestId("icon-play")).toBeTruthy();
-    });
-
-    test("hides play icon when active", () => {
-      const { queryByTestId } = renderFeedCard({
-        active: true,
-      });
-
-      expect(queryByTestId("icon-play")).toBeFalsy();
-    });
-
-    test("still renders video when active changes", () => {
-      const { rerender, getByTestId } = renderFeedCard();
-
-      rerender(<FeedCard item={mockPost} active={false} />);
-
-      expect(getByTestId("video-view")).toBeTruthy();
-    });
-
-    test("video initializes correctly", () => {
-      renderFeedCard();
-      expect(FeedCard).toBeTruthy();
     });
   });
 
-  /* ---------------------------- DIFFERENT INPUTS --------------------------- */
+  test("hides the follow button on your own post", async () => {
+    useAuth.mockReturnValue({ userId: "author-1" }); // same as post.user_id
+    useSupabase.mockReturnValue(
+      makeSupabase({ profiles: { username: "Me", avatar_url: null } }),
+    );
 
-  describe("Different post data", () => {
-    test("renders different gym name and grade", () => {
-      const customPost = {
-        ...mockPost,
-        gym_name: "Planet Granite",
-        grade: "V7",
-      };
+    const { queryByTestId } = render(<FeedCard item={post} active={false} />);
 
-      const { getByText } = render(
-        <FeedCard item={customPost} active={true} />,
-      );
+    await waitFor(() => expect(queryByTestId("feed-card")).toBeTruthy());
+    expect(queryByTestId("follow-button")).toBeNull();
+  });
 
-      expect(getByText(/Planet Granite • V7/)).toBeTruthy();
+  test("follow button toggles to Following and persists", async () => {
+    const supabase = makeSupabase({
+      profiles: { username: "Alex H.", avatar_url: null },
+      follows: [],
     });
+    useSupabase.mockReturnValue(supabase);
 
-    test("supports numeric ids", () => {
-      const customPost = {
-        ...mockPost,
-        id: 123,
-      };
+    const { getByTestId, getByText } = render(
+      <FeedCard item={post} active={false} />,
+    );
 
-      const { getByText } = render(
-        <FeedCard item={customPost} active={true} />,
-      );
+    await waitFor(() => expect(getByTestId("follow-button")).toBeTruthy());
 
-      expect(getByText("James Doe")).toBeTruthy();
-    });
+    fireEvent.press(getByTestId("follow-button"));
 
-    test("supports special characters", () => {
-      const customPost = {
-        ...mockPost,
-        gym_name: "O'Reilly's Rock Gym & Boulder",
-      };
-
-      const { getByText } = render(
-        <FeedCard item={customPost} active={true} />,
-      );
-
-      expect(getByText(/O'Reilly's Rock Gym/)).toBeTruthy();
+    await waitFor(() => expect(getByText("Following")).toBeTruthy());
+    expect(supabase.__inserts.follows).toContainEqual({
+      follower_id: "viewer-1",
+      following_id: "author-1",
     });
   });
 
-  /* ------------------------------- EDGE CASES ------------------------------ */
+  test("share button opens the native share sheet with the video link", async () => {
+    const shareSpy = jest
+      .spyOn(Share, "share")
+      .mockResolvedValue({ action: "sharedAction" } as any);
+    useSupabase.mockReturnValue(
+      makeSupabase({ profiles: { username: "Alex H.", avatar_url: null } }),
+    );
 
-  describe("Edge cases", () => {
-    test("handles rapid follow presses", async () => {
-      const { getByText } = renderFeedCard();
+    const { getByTestId } = render(
+      <FeedCard item={post} active={false} height={800} />,
+    );
 
-      const button = getByText("Follow");
+    fireEvent.press(getByTestId("share-button"));
 
-      fireEvent.press(button);
-      fireEvent.press(button);
-      fireEvent.press(button);
+    await waitFor(() => expect(shareSpy).toHaveBeenCalled());
+    expect(shareSpy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ url: post.video_url }),
+    );
+    shareSpy.mockRestore();
+  });
 
-      await waitFor(() => {
-        expect(getByText("Following")).toBeTruthy();
-      });
-    });
-
-    test("renders without crashing", () => {
-      expect(() => {
-        renderFeedCard();
-      }).not.toThrow();
-    });
+  test("renders without crashing", () => {
+    useSupabase.mockReturnValue(makeSupabase({}));
+    expect(() =>
+      render(<FeedCard item={post} active={false} height={800} />),
+    ).not.toThrow();
   });
 });

@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import React from "react";
 import { ActivityIndicator } from "react-native";
 import Home from "../app/(tabs)/index";
@@ -77,6 +77,11 @@ describe("Home", () => {
 
       const { getByTestId } = render(<Home />);
 
+      const pager = await waitFor(() => getByTestId("feed-pager"));
+      fireEvent(pager, "layout", {
+        nativeEvent: { layout: { height: 800, width: 400, x: 0, y: 0 } },
+      });
+
       await waitFor(() => {
         expect(getByTestId("feedcard-1")).toBeTruthy();
         expect(getByTestId("feedcard-2")).toBeTruthy();
@@ -104,6 +109,11 @@ describe("Home", () => {
       });
 
       const { getByTestId } = render(<Home />);
+
+      const pager = await waitFor(() => getByTestId("feed-pager"));
+      fireEvent(pager, "layout", {
+        nativeEvent: { layout: { height: 800, width: 400, x: 0, y: 0 } },
+      });
 
       await waitFor(() => {
         mockPosts.forEach((post) => {

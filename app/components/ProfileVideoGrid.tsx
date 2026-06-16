@@ -28,7 +28,10 @@ function ProfileVideoGridCell({ post }: ProfileVideoGridProps) {
   };
 
   return (
-    <Pressable className="flex-1 aspect-square rounded-lg overflow-hidden bg-bb-card">
+    <Pressable
+      testID={`grid-cell-${post.id}`}
+      className="flex-1 aspect-square rounded-lg overflow-hidden bg-bb-card"
+    >
       {/* Thumbnail */}
       <View className="w-full h-full relative bg-bb-card">
         <Image
