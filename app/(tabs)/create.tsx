@@ -1,7 +1,8 @@
+import { useAuth } from "@clerk/expo";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { VideoView, useVideoPlayer } from "expo-video";
 import { useRouter } from "expo-router";
+import { VideoView, useVideoPlayer } from "expo-video";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -16,7 +17,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import uuid from "react-native-uuid";
 
 // --- SUPABASE CONFIG ---
 // Import your supabase client from your config file
@@ -49,6 +49,7 @@ const STYLES = ["Dynamic", "Static", "Crimp", "Slab", "Sloper"];
 export default function Create() {
   const router = useRouter();
   const supabase = useSupabase();
+  const { userId } = useAuth();
 
   // Form State
   const [gym, setGym] = useState("");
@@ -92,47 +93,87 @@ export default function Create() {
     setUploading(true);
 
     try {
-      // A. Convert URI to Blob
+      // Step 1: Verify auth
+      if (!userId) {
+        throw new Error("Not authenticated. Please log in.");
+      }
+
+      // Step 2: Read file
+      console.log("📁 Reading video file...");
+      console.log("Video URI:", video.uri);
+
       const response = await fetch(video.uri);
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer();
 
-      const fileExt = video.uri.split(".").pop();
-      const fileName = `${String(uuid.v4())}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileSizeMB = (arrayBuffer.byteLength / 1024 / 1024).toFixed(2);
 
-      // B. Upload to Supabase Storage
-      const { error: storageError } = await supabase.storage
+      console.log(`✅ File read: ${fileSizeMB} MB`);
+
+      // Step 3: Create filename
+      const fileExt = video.uri.split(".").pop()?.toLowerCase() || "mp4";
+
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+      // Step 4: Upload
+
+      console.log(`📤 Uploading to storage: ${fileName}`);
+      console.log(`Upload size: ${fileSizeMB} MB`);
+
+      const { data, error: uploadError } = await supabase.storage
         .from("videoStorage")
-        .upload(filePath, blob, {
+        .upload(fileName, arrayBuffer, {
           contentType: "video/mp4",
+          upsert: false,
         });
 
-      if (storageError) throw storageError;
+      console.log("Storage response:", data);
+      console.log("Storage error:", JSON.stringify(uploadError, null, 2));
 
-      // C. Get Public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("videoStorage").getPublicUrl(filePath);
+      if (uploadError) {
+        throw uploadError;
+      }
 
-      // D. Save to Database
+      console.log("✅ Storage upload successful");
+
+      // Step 5: Get public URL
+      const { data: urlData } = supabase.storage
+        .from("videoStorage")
+        .getPublicUrl(fileName);
+
+      const videoUrl = urlData.publicUrl;
+      console.log(`✅ Video URL: ${videoUrl}`);
+
+      // Step 6: Save post to database
+      console.log("📝 Saving post to database...");
+      const postData = {
+        gym_name: gym,
+        grade: grade,
+        climbing_style: style,
+        description: description || null,
+        video_url: videoUrl,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+        view_count: 0,
+      };
+
       const { error: dbError } = await supabase
-        .from("posts") // Ensure this table has these columns
-        .insert({
-          gym_name: gym,
-          grade: grade,
-          climbing_style: style,
-          description: description,
-          video_url: publicUrl,
-          created_at: new Date(),
-        });
+        .from("posts")
+        .insert([postData]);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("❌ Database error:", dbError.message);
+        throw new Error(`Database error: ${dbError.message}`);
+      }
 
-      Alert.alert("Success!", "Your beta has been uploaded.");
+      console.log("✅ Post saved to database");
+
+      Alert.alert("Success! 🎉", "Your climbing beta has been posted!");
       router.back();
     } catch (error) {
-      console.error(error);
-      Alert.alert("Upload failed", (error as Error).message);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error("❌ Upload error:", errorMessage);
+      Alert.alert("Upload Failed", errorMessage);
     } finally {
       setUploading(false);
     }

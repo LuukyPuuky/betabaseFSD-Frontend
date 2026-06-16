@@ -80,12 +80,17 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => (
             <Feather name="user" size={24} color={color} />
           ),
-          headerRight: () => (
+          headerLeft: () => (
             <Link href={"/settings" as any} asChild>
-              <Pressable className="mr-4">
+              <Pressable className="ml-4">
                 <Feather name="settings" size={24} color="#F3F4F6" />
               </Pressable>
             </Link>
+          ),
+          headerRight: () => (
+            <Pressable className="mr-4">
+              <Feather name="share-2" size={24} color="#F3F4F6" />
+            </Pressable>
           ),
         }}
       />
