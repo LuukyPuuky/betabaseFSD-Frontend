@@ -6,10 +6,10 @@ test.describe("Auth flow", () => {
   });
 
   test("logs in with valid credentials", async ({ screen }) => {
-    await screen.getByLabel("Email").fill("test@betabase.com");
+    await screen.getByLabel("Email").fill("luukwillem@gmail.com");
     await screen.getByLabel("Password").fill("testpassword");
     await screen.getByRole("button", { name: "Sign In" }).tap();
-    await expect(screen.getByText("Dashboard")).toBeVisible();
+    await expect(screen.getByText("Home")).toBeVisible();
   });
 
   test("shows error on invalid credentials", async ({ screen }) => {

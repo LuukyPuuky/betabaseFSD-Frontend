@@ -12,6 +12,11 @@ const env = process.env as unknown as Env;
 
 const publishableKey = env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+// Land on the tab navigator (Home) on cold start, not the settings modal.
+export const unstable_settings = {
+  initialRouteName: "(tabs)",
+};
+
 console.log("KEY:", publishableKey);
 
 if (!publishableKey) {
@@ -41,6 +46,10 @@ function InitialLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* Declared first so the tab navigator (Home) is the anchor/initial
+          route on cold start instead of the settings modal. */}
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(auth)" />
       <Stack.Screen
         name="settings"
         options={{

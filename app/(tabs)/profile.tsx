@@ -2,7 +2,7 @@ import { useAuth, useUser } from "@clerk/expo";
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -50,6 +50,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Clerk returns a new `user` object reference on most renders. Keep it in a
+  // ref so the data-fetching callbacks below don't list it as a dependency
+  // (which would recreate them every render and cause an infinite reload loop).
+  const userRef = useRef(user);
+  userRef.current = user;
+
   const fetchProfile = useCallback(async () => {
     if (!userId || !isLoaded) return;
 
@@ -68,8 +74,11 @@ export default function Profile() {
           .from("profiles")
           .insert({
             id: userId,
-            username: user?.username || user?.fullName || "Climber",
-            avatar_url: user?.imageUrl || null,
+            username:
+              userRef.current?.username ||
+              userRef.current?.fullName ||
+              "Climber",
+            avatar_url: userRef.current?.imageUrl || null,
             bio: null,
             grade: "Beginner",
           })
@@ -83,7 +92,7 @@ export default function Profile() {
     } catch (err) {
       console.error("Error fetching profile:", err);
     }
-  }, [userId, isLoaded, user]);
+  }, [userId, isLoaded, supabaseClient]);
 
   const fetchMyPosts = useCallback(async () => {
     if (!userId || !isLoaded) return;
@@ -101,7 +110,7 @@ export default function Profile() {
     } catch (err) {
       console.error("Error fetching my posts:", err);
     }
-  }, [userId, isLoaded]);
+  }, [userId, isLoaded, supabaseClient]);
 
   const fetchLikedPosts = useCallback(async () => {
     if (!userId || !isLoaded) return;
@@ -132,7 +141,7 @@ export default function Profile() {
     } catch (err) {
       console.error("Error fetching liked posts:", err);
     }
-  }, [userId, isLoaded]);
+  }, [userId, isLoaded, supabaseClient]);
 
   const loadPostsOnly = useCallback(async () => {
     if (!userId || !isLoaded) return;
@@ -156,14 +165,18 @@ export default function Profile() {
     loadData();
   }, [loadData]);
 
+  // Refetch posts only when the screen regains focus (e.g. after creating a
+  // post) — not on the initial mount (loadData already handled that) and not on
+  // every render. Skipping the first focus avoids a duplicate request on load.
+  const isFirstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
-      // Only refetch posts if there are already some posts loaded
-      // This prevents flickering on initial load and only updates after post creation
-      if (profile && myPosts.length >= 0) {
-        loadPostsOnly();
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
       }
-    }, [loadPostsOnly, profile, myPosts.length])
+      loadPostsOnly();
+    }, [loadPostsOnly])
   );
 
   if (!isLoaded || loading) {

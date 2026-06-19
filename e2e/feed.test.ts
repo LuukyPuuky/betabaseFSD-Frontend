@@ -1,10 +1,8 @@
-// Runs against the configured Android device (see mobilewright.config.ts).
-// Assumes the test account is already signed in and at least one post exists.
 import { expect, test } from "@mobilewright/test";
 
 test.describe("Feed timeline notes", () => {
   test("home feed shows a beta video card", async ({ screen }) => {
-    await expect(screen.getByText("BoulderBase")).toBeVisible();
+    await expect(screen.getByText("BetaBase")).toBeVisible();
     await expect(screen.getByText("Add Note")).toBeVisible();
   });
 
@@ -18,7 +16,7 @@ test.describe("Feed timeline notes", () => {
 
     await screen
       .getByPlaceholder("Share your beta for this moment...")
-      .fill("Heel hook on the arete");
+      .fill("Heel hook on the jug");
     await screen.getByText("Post Note").tap();
 
     // Composer closes after a successful post.
