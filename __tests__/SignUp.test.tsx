@@ -84,7 +84,7 @@ describe("SignUp", () => {
 
     test("renders sign-up branding", () => {
       const { getByText } = render(<SignUp />);
-      expect(getByText("BoulderBase")).toBeTruthy();
+      expect(getByText("BetaBase")).toBeTruthy();
     });
   });
 
@@ -131,7 +131,7 @@ describe("SignUp", () => {
 
     test("renders sign-up branding", () => {
       const { getByText } = render(<SignUp />);
-      expect(getByText("BoulderBase")).toBeTruthy();
+      expect(getByText("BetaBase")).toBeTruthy();
       expect(getByText(/Join the community/)).toBeTruthy();
     });
   });

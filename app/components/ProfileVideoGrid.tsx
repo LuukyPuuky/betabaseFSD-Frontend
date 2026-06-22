@@ -1,7 +1,7 @@
+import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
 
 interface Post {
   id: string;
@@ -10,6 +10,7 @@ interface Post {
   climbing_style: string;
   description: string;
   video_url: string;
+  thumbnail_url: string | null;
   user_id: string;
   view_count: number;
   created_at: string;
@@ -32,13 +33,20 @@ function ProfileVideoGridCell({ post }: ProfileVideoGridProps) {
       testID={`grid-cell-${post.id}`}
       className="flex-1 aspect-square rounded-lg overflow-hidden bg-bb-card"
     >
-      {/* Thumbnail */}
       <View className="w-full h-full relative bg-bb-card">
-        <Image
-          source={{ uri: post.video_url }}
-          style={{ width: "100%", height: "100%" }}
-          contentFit="cover"
-        />
+        {post.thumbnail_url ? (
+          <Image
+            source={{ uri: post.thumbnail_url }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
+        ) : (
+          <View className="w-full h-full items-center justify-center">
+            <Feather name="film" size={24} color="#5A8B5F" />
+          </View>
+        )}
 
         {/* Overlay gradient + play icon + view count */}
         <View className="absolute inset-0 bg-black/20 items-end justify-end p-2">

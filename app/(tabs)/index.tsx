@@ -1,3 +1,4 @@
+import { useIsFocused } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,35 +11,70 @@ import {
 import FeedCard from "@/app/components/FeedCard";
 import { useSupabase } from "@/lib/supabase";
 
+const PAGE_SIZE = 6;
+
 export default function Home() {
   const supabase = useSupabase();
 
+  // Tab navigators keep this screen mounted when you switch tabs. Track focus
+  // so the active card pauses when Home isn't the visible tab.
+  const isFocused = useIsFocused();
+
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [itemHeight, setItemHeight] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
+  const pageRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const fetchingRef = useRef(false);
+
+  const loadPage = useCallback(
+    async (page: number) => {
+      if (fetchingRef.current || !hasMoreRef.current) return;
+      fetchingRef.current = true;
+      if (page > 0) setLoadingMore(true);
+
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       const { data, error } = await supabase
         .from("posts")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (!error && data) {
-        setPosts(data);
-        if (data.length > 0) {
-          setActiveId(data[0].id.toString());
+        if (data.length < PAGE_SIZE) hasMoreRef.current = false;
+        pageRef.current = page;
+
+        if (page === 0) {
+          setPosts(data);
+          if (data.length > 0) setActiveId(data[0].id.toString());
+        } else {
+          // Dedupe by id in case a newly-inserted post shifted the window.
+          setPosts((prev) => {
+            const seen = new Set(prev.map((p) => p.id));
+            return [...prev, ...data.filter((p) => !seen.has(p.id))];
+          });
         }
       }
 
+      fetchingRef.current = false;
       setLoading(false);
-    };
+      setLoadingMore(false);
+    },
+    [supabase],
+  );
 
-    fetchPosts();
-  }, [supabase]);
+  useEffect(() => {
+    loadPage(0);
+  }, [loadPage]);
 
-  // Only the card that is >=80% on screen plays; the rest pause.
+  const onEndReached = useCallback(() => {
+    loadPage(pageRef.current + 1);
+  }, [loadPage]);
+
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -73,10 +109,23 @@ export default function Home() {
           decelerationRate="fast"
           viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={1}
+          extraData={`${activeId}:${isFocused}`}
+          ListFooterComponent={
+            loadingMore ? (
+              <View
+                style={{ height: itemHeight }}
+                className="items-center justify-center bg-black"
+              >
+                <ActivityIndicator color="#fff" />
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <FeedCard
               item={item}
-              active={item.id.toString() === activeId}
+              active={isFocused && item.id.toString() === activeId}
               height={itemHeight}
             />
           )}

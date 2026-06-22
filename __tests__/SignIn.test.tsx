@@ -227,7 +227,7 @@ describe("SignIn", () => {
   describe("Edge cases", () => {
     test("renders branding text", () => {
       const { getByText } = render(<SignIn />);
-      expect(getByText("BoulderBase")).toBeTruthy();
+      expect(getByText("BetaBase")).toBeTruthy();
       expect(getByText(/Elevate your climbing journey/)).toBeTruthy();
     });
 

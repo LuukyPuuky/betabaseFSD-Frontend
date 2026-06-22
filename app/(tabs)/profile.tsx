@@ -33,6 +33,7 @@ interface Post {
   climbing_style: string;
   description: string;
   video_url: string;
+  thumbnail_url: string | null;
   user_id: string;
   view_count: number;
   created_at: string;

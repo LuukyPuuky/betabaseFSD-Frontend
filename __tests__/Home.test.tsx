@@ -18,6 +18,10 @@ jest.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
+jest.mock("@react-navigation/native", () => ({
+  useIsFocused: jest.fn(() => true),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { useSupabase } = require("@/lib/supabase");
 
@@ -31,7 +35,9 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest.fn(() => new Promise(() => {})), // Never resolves
+            order: jest.fn(() => ({
+              range: jest.fn(() => new Promise(() => {})), // Never resolves
+            })),
           })),
         })),
       });
@@ -68,9 +74,11 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest
-              .fn()
-              .mockResolvedValue({ data: mockPosts, error: null }),
+            order: jest.fn(() => ({
+              range: jest
+                .fn()
+                .mockResolvedValue({ data: mockPosts, error: null }),
+            })),
           })),
         })),
       });
@@ -101,9 +109,11 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest
-              .fn()
-              .mockResolvedValue({ data: mockPosts, error: null }),
+            order: jest.fn(() => ({
+              range: jest
+                .fn()
+                .mockResolvedValue({ data: mockPosts, error: null }),
+            })),
           })),
         })),
       });
@@ -128,7 +138,9 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest.fn().mockResolvedValue({ data: [], error: null }),
+            order: jest.fn(() => ({
+              range: jest.fn().mockResolvedValue({ data: [], error: null }),
+            })),
           })),
         })),
       });
@@ -148,10 +160,12 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest.fn().mockResolvedValue({
-              data: null,
-              error: { message: "Network error" },
-            }),
+            order: jest.fn(() => ({
+              range: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Network error" },
+              }),
+            })),
           })),
         })),
       });
@@ -169,10 +183,12 @@ describe("Home", () => {
       useSupabase.mockReturnValue({
         from: jest.fn(() => ({
           select: jest.fn(() => ({
-            order: jest.fn().mockResolvedValue({
-              data: null,
-              error: { message: "Network error" },
-            }),
+            order: jest.fn(() => ({
+              range: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: "Network error" },
+              }),
+            })),
           })),
         })),
       });

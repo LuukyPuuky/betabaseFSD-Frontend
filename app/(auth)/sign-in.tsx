@@ -115,12 +115,14 @@ const SignIn = () => {
     return (
       <SafeAreaView className="auth-safe-area">
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? undefined : "height"}
           className="auth-screen"
         >
           <ScrollView
             className="auth-scroll"
+            contentContainerStyle={authScrollContentStyle}
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
             showsVerticalScrollIndicator={false}
           >
             <View className="auth-content">
@@ -130,7 +132,7 @@ const SignIn = () => {
                   <View className="auth-logo-mark">
                     <MaterialIcons name="terrain" size={32} color="#ffffff" />
                   </View>
-                  <Text className="auth-wordmark">BoulderBase</Text>
+                  <Text className="auth-wordmark">BetaBase</Text>
                   <Text className="auth-wordmark-sub">
                     Elevate your climbing journey
                   </Text>
@@ -220,13 +222,14 @@ const SignIn = () => {
   return (
     <SafeAreaView className="auth-safe-area">
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? undefined : "height"}
         className="auth-screen"
       >
         <ScrollView
           className="auth-scroll"
           contentContainerStyle={authScrollContentStyle}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
           <View className="auth-content">
@@ -236,7 +239,7 @@ const SignIn = () => {
                 <View className="auth-logo-mark">
                   <MaterialIcons name="terrain" size={32} color="#ffffff" />
                 </View>
-                <Text className="auth-wordmark">BoulderBase</Text>
+                <Text className="auth-wordmark">BetaBase</Text>
                 <Text className="auth-wordmark-sub">
                   Elevate your climbing journey
                 </Text>

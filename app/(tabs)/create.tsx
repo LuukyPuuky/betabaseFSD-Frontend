@@ -1,8 +1,10 @@
 import { useAuth } from "@clerk/expo";
 import { Feather } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system/legacy";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { VideoView, useVideoPlayer } from "expo-video";
+import * as VideoThumbnails from "expo-video-thumbnails";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -20,7 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 // --- SUPABASE CONFIG ---
 // Import your supabase client from your config file
-import { useSupabase } from "../../lib/supabase";
+import { supabaseAnonKey, supabaseUrl, useSupabase } from "../../lib/supabase";
 
 const GRADES = [
   "3",
@@ -49,7 +51,7 @@ const STYLES = ["Dynamic", "Static", "Crimp", "Slab", "Sloper"];
 export default function Create() {
   const router = useRouter();
   const supabase = useSupabase();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
 
   // Form State
   const [gym, setGym] = useState("");
@@ -59,12 +61,10 @@ export default function Create() {
 
   // Media State
   const [video, setVideo] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  const [thumbnailLoading, setThumbnailLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const player = useVideoPlayer(video?.uri || "", (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.play();
-  });
+  const [statusLabel, setStatusLabel] = useState("");
 
   // UI State
   const [showGradeModal, setShowGradeModal] = useState(false);
@@ -72,15 +72,40 @@ export default function Create() {
 
   // 1. Pick Video Function
   const pickVideo = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: true,
       quality: 1,
+      videoMaxDuration: 60,
     });
 
-    if (!result.canceled) {
-      setVideo(result.assets[0]);
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    setVideo(asset);
+
+    // Generate a still preview from the local file. We deliberately never play
+    // the video on this screen — autoplaying a freshly-picked clip here crashed
+    // the app. The real video is only rendered in the feed after the post is
+    // saved. This thumbnail is also reused at upload time (no regeneration).
+    setThumbnailUri(null);
+    setThumbnailLoading(true);
+    try {
+      const { uri } = await VideoThumbnails.getThumbnailAsync(asset.uri, {
+        time: 0,
+        quality: 0.5,
+      });
+      setThumbnailUri(uri);
+    } catch (err) {
+      console.warn("⚠️ Preview thumbnail generation failed:", err);
+    } finally {
+      setThumbnailLoading(false);
     }
+  };
+
+  const clearVideo = () => {
+    setVideo(null);
+    setThumbnailUri(null);
   };
 
   // 2. Handle Final Submit
@@ -98,50 +123,114 @@ export default function Create() {
         throw new Error("Not authenticated. Please log in.");
       }
 
-      // Step 2: Read file
-      console.log("📁 Reading video file...");
-      console.log("Video URI:", video.uri);
+      // Step 2: Auth token used by Storage RLS (Clerk JWT, same as the client).
+      const token = await getToken({ template: "supabase" });
 
-      const response = await fetch(video.uri);
-      const arrayBuffer = await response.arrayBuffer();
+      // Stream a local file straight to Supabase Storage from disk. We do NOT
+      // read the file into a JS ArrayBuffer first — loading a full-quality video
+      // into memory and POSTing it as a single body is what caused the
+      // "Network request failed" error on device. expo-file-system streams it.
+      const uploadToStorage = async (
+        localUri: string,
+        objectPath: string,
+        contentType: string,
+      ) => {
+        if (Platform.OS === "web") {
+          // expo-file-system upload is unavailable on web — fall back to the SDK.
+          const buffer = await fetch(localUri).then((r) => r.arrayBuffer());
+          const { error } = await supabase.storage
+            .from("videoStorage")
+            .upload(objectPath, buffer, { contentType, upsert: false });
+          if (error) throw error;
+          return;
+        }
 
-      const fileSizeMB = (arrayBuffer.byteLength / 1024 / 1024).toFixed(2);
+        const res = await FileSystem.uploadAsync(
+          `${supabaseUrl}/storage/v1/object/videoStorage/${objectPath}`,
+          localUri,
+          {
+            httpMethod: "POST",
+            uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+            headers: {
+              Authorization: `Bearer ${token ?? supabaseAnonKey}`,
+              apikey: supabaseAnonKey ?? "",
+              "Content-Type": contentType,
+              "x-upsert": "false",
+            },
+          },
+        );
 
-      console.log(`✅ File read: ${fileSizeMB} MB`);
+        if (res.status < 200 || res.status >= 300) {
+          throw new Error(
+            `Storage upload failed (HTTP ${res.status}): ${
+              res.body || "no response body"
+            }`,
+          );
+        }
+      };
 
-      // Step 3: Create filename
-      const fileExt = video.uri.split(".").pop()?.toLowerCase() || "mp4";
-
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
-
-      // Step 4: Upload
-
-      console.log(`📤 Uploading to storage: ${fileName}`);
-      console.log(`Upload size: ${fileSizeMB} MB`);
-
-      const { data, error: uploadError } = await supabase.storage
-        .from("videoStorage")
-        .upload(fileName, arrayBuffer, {
-          contentType: "video/mp4",
-          upsert: false,
-        });
-
-      console.log("Storage response:", data);
-      console.log("Storage error:", JSON.stringify(uploadError, null, 2));
-
-      if (uploadError) {
-        throw uploadError;
+      // Step 3: Compress so the clip fits Storage limits (Free plan ~50 MB),
+      // then upload the compressed file (streamed from disk). Compression is a
+      // native module, so skip it on web and upload the original there.
+      let uploadUri = video.uri;
+      if (Platform.OS !== "web") {
+        try {
+          // Imported lazily: react-native-compressor is a native module, so a
+          // build that doesn't yet include it must NOT crash the screen at load
+          // time. If it's unavailable we fall back to uploading the original.
+          const { Video } = await import("react-native-compressor");
+          setStatusLabel("Compressing…");
+          uploadUri = await Video.compress(
+            video.uri,
+            { compressionMethod: "auto" },
+            (progress) =>
+              setStatusLabel(`Compressing ${Math.round(progress * 100)}%`),
+          );
+        } catch (compressErr) {
+          console.warn(
+            "⚠️ Video compression unavailable — uploading the original. " +
+              "Rebuild the dev client (npx expo run:android) to enable it.",
+            compressErr,
+          );
+          setStatusLabel("");
+        }
       }
 
+      // The compressor always outputs an mp4, regardless of the source container.
+      const fileName = `${userId}/${Date.now()}.mp4`;
+
+      setStatusLabel("Uploading…");
+      console.log(`📤 Uploading video to storage: ${fileName}`);
+      await uploadToStorage(uploadUri, fileName, "video/mp4");
       console.log("✅ Storage upload successful");
 
-      // Step 5: Get public URL
-      const { data: urlData } = supabase.storage
+      // Step 4: Public URL (string-only, no network call)
+      const videoUrl = supabase.storage
         .from("videoStorage")
-        .getPublicUrl(fileName);
-
-      const videoUrl = urlData.publicUrl;
+        .getPublicUrl(fileName).data.publicUrl;
       console.log(`✅ Video URL: ${videoUrl}`);
+
+      let thumbnailUrl: string | null = null;
+      try {
+        // Reuse the preview generated when the video was picked; only generate
+        // here as a fallback if it is somehow missing.
+        let thumbUri = thumbnailUri;
+        if (!thumbUri) {
+          const generated = await VideoThumbnails.getThumbnailAsync(video.uri, {
+            time: 0,
+            quality: 0.5,
+          });
+          thumbUri = generated.uri;
+        }
+        const thumbName = `${userId}/${Date.now()}_thumb.jpg`;
+        await uploadToStorage(thumbUri, thumbName, "image/jpeg");
+        thumbnailUrl = supabase.storage
+          .from("videoStorage")
+          .getPublicUrl(thumbName).data.publicUrl;
+        console.log(`✅ Thumbnail URL: ${thumbnailUrl}`);
+      } catch (thumbErr) {
+        console.warn("⚠️ Thumbnail generation failed:", thumbErr);
+      }
 
       // Step 6: Save post to database
       console.log("📝 Saving post to database...");
@@ -151,6 +240,7 @@ export default function Create() {
         climbing_style: style,
         description: description || null,
         video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
         user_id: userId,
         created_at: new Date().toISOString(),
         view_count: 0,
@@ -176,6 +266,7 @@ export default function Create() {
       Alert.alert("Upload Failed", errorMessage);
     } finally {
       setUploading(false);
+      setStatusLabel("");
     }
   };
 
@@ -200,35 +291,77 @@ export default function Create() {
           contentContainerStyle={{ paddingBottom: 120 }}
         >
           {/* Upload Video Area */}
-          <Pressable
-            onPress={pickVideo}
-            className="mt-4 border-2 border-dashed border-[#2A3F2D] rounded-3xl overflow-hidden min-h-[200px] items-center justify-center bg-[#1a211a]"
-          >
-            {video ? (
-              <VideoView
-                player={player}
-                style={{ width: "100%", height: 200 }}
-                nativeControls={false}
-              />
-            ) : (
-              <>
-                <View className="w-12 h-12 rounded-full bg-[#2A3F2D] items-center justify-center mb-4">
-                  <Feather name="film" size={20} color="#5A8B5F" />
+          {video ? (
+            <View className="mt-4 rounded-3xl overflow-hidden bg-[#1a211a] border border-[#2A3F2D]">
+              {/* Still preview — never an autoplaying video on this screen */}
+              <View className="relative w-full h-[200px] bg-black">
+                {thumbnailUri ? (
+                  <Image
+                    source={{ uri: thumbnailUri }}
+                    style={{ width: "100%", height: "100%" }}
+                    contentFit="cover"
+                  />
+                ) : thumbnailLoading ? (
+                  <View className="w-full h-full items-center justify-center">
+                    <ActivityIndicator color="#5A8B5F" />
+                  </View>
+                ) : (
+                  <View className="w-full h-full items-center justify-center">
+                    <Feather name="film" size={28} color="#5A8B5F" />
+                  </View>
+                )}
+
+                {/* Play badge signals this is a video clip, not a photo */}
+                <View className="absolute inset-0 items-center justify-center">
+                  <View className="w-12 h-12 rounded-full bg-black/40 items-center justify-center">
+                    <Feather name="play" size={22} color="#ffffff" />
+                  </View>
                 </View>
-                <Text className="text-white font-bold text-lg mb-1">
-                  Select Video
-                </Text>
-                <Text className="text-bb-text-muted text-sm mb-6">
-                  Tap to browse your climbing clips
-                </Text>
-                <View className="bg-bb-green px-6 py-3 rounded-full">
+              </View>
+
+              {/* Change / Remove actions */}
+              <View className="flex-row gap-3 p-3">
+                <Pressable
+                  onPress={pickVideo}
+                  className="flex-1 flex-row items-center justify-center gap-2 bg-bb-green rounded-full py-3"
+                >
+                  <Feather name="refresh-cw" size={16} color="#ffffff" />
                   <Text className="text-white font-bold text-[15px]">
-                    Open Gallery
+                    Change video
                   </Text>
-                </View>
-              </>
-            )}
-          </Pressable>
+                </Pressable>
+                <Pressable
+                  onPress={clearVideo}
+                  className="flex-row items-center justify-center gap-2 bg-bb-card border border-[#2A3F2D] rounded-full px-5 py-3"
+                >
+                  <Feather name="trash-2" size={16} color="#9CA3AF" />
+                  <Text className="text-bb-text-muted font-semibold text-[15px]">
+                    Remove
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              onPress={pickVideo}
+              className="mt-4 border-2 border-dashed border-[#2A3F2D] rounded-3xl overflow-hidden min-h-[200px] items-center justify-center bg-[#1a211a]"
+            >
+              <View className="w-12 h-12 rounded-full bg-[#2A3F2D] items-center justify-center mb-4">
+                <Feather name="film" size={20} color="#5A8B5F" />
+              </View>
+              <Text className="text-white font-bold text-lg mb-1">
+                Select Video
+              </Text>
+              <Text className="text-bb-text-muted text-sm mb-6">
+                Tap to browse your climbing clips
+              </Text>
+              <View className="bg-bb-green px-6 py-3 rounded-full">
+                <Text className="text-white font-bold text-[15px]">
+                  Open Gallery
+                </Text>
+              </View>
+            </Pressable>
+          )}
 
           {/* Form Fields */}
           <View className="mt-8">
@@ -278,7 +411,7 @@ export default function Create() {
 
             <View className="mb-6">
               <Text className="text-white font-bold text-sm mb-2">
-                Route Description
+                Description
               </Text>
               <View className="bg-bb-card rounded-2xl px-4 py-3.5 min-h-[120px]">
                 <TextInput
@@ -300,7 +433,14 @@ export default function Create() {
             className={`bg-bb-green flex-row items-center justify-center rounded-full py-4 mt-2 shadow-sm ${uploading ? "opacity-50" : ""}`}
           >
             {uploading ? (
-              <ActivityIndicator color="#fff" />
+              <View className="flex-row items-center gap-2">
+                <ActivityIndicator color="#fff" />
+                {statusLabel ? (
+                  <Text className="text-white font-bold text-[15px]">
+                    {statusLabel}
+                  </Text>
+                ) : null}
+              </View>
             ) : (
               <>
                 <Feather
@@ -310,7 +450,7 @@ export default function Create() {
                   style={{ marginRight: 8 }}
                 />
                 <Text className="text-white font-bold text-[17px]">
-                  Post to BoulderBase
+                  Post to BetaBase
                 </Text>
               </>
             )}
