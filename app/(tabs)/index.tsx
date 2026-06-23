@@ -112,6 +112,10 @@ export default function Home() {
           onEndReached={onEndReached}
           onEndReachedThreshold={1}
           extraData={`${activeId}:${isFocused}`}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+          removeClippedSubviews
           ListFooterComponent={
             loadingMore ? (
               <View
